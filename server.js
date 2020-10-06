@@ -7,6 +7,8 @@ const signatures = require('./signatures');
 require('dotenv').config();
 
 const mydb = require('./db/mongodb-connection');
+const loginRouter = require('./routes/session/login');
+const registerRouter = require('./routes/session/register');
 
 const app = express();
 const PORT = process.env.PORT || 443;
@@ -15,9 +17,6 @@ app.use(fileUpload());
 app.use(express.json());
 
 app.use('/',express.static(path.join(__dirname, 'public')));
-
-const loginRouter = require('./routes/login');
-const registerRouter = require('./routes/register');
 
 app.use('/login', loginRouter);
 

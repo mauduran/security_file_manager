@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const connection = require('../db/db-connection');
+const connection = require('../../db/db-connection');
 const speakeasy = require('speakeasy');
 const bcrypt = require('bcrypt');
 

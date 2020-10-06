@@ -2,7 +2,7 @@ const express = require('express');
 const speakeasy = require('speakeasy')
 const qrcode = require('qrcode');
 const router = express.Router();
-const connection = require('../db/db-connection');
+const connection = require('../../db/db-connection');
 const bcrypt = require('bcrypt');
 
 function existsUser(username) {
@@ -33,7 +33,6 @@ function insertMultiFactorSecret(userId, secret) {
             })
     })
 }
-
 
 router.route('/')
     .post(async (req, res) => {

@@ -6,9 +6,9 @@ const fileUpload = require("express-fileupload");
 const signatures = require('./signatures');
 require('dotenv').config();
 
-const mydb = require('./db/mongodb-connection');
 const loginRouter = require('./routes/session/login');
 const registerRouter = require('./routes/session/register');
+const filesRouter = require('./routes/files/files');
 
 const app = express();
 const PORT = process.env.PORT || 443;
@@ -19,37 +19,25 @@ app.use(express.json());
 app.use('/',express.static(path.join(__dirname, 'public')));
 
 app.use('/login', loginRouter);
-
 app.use('/register', registerRouter);
 
 app.get('/signatures/:file', (req, res)=>{
     const file = req.params.file;
     
-    const doc = fs.readFileSync(path.join(__dirname, 'file_uploads', file, 'qr.png'));
+    const doc = fs.readFileSync(path.join('.', 'file_uploads', file, 'qr.png'));
 
     res.set({'Content-Type': 'image/png'}).send(doc);
 })
 
 app.get('/verify/:file', (req, res)=>{
     let filename = req.params.file.replace(/\s/g,"-");
-    res.json(signatures.verifyDocument(path.join(__dirname, 'file_uploads', filename), filename));
+    res.json(signatures.verifyDocument(path.join('.', 'file_uploads', filename), filename));
 })
 
-app.get('/download/:filename', (req, res)=>{
-    let filename = req.params.filename.replace(/\s/g,"-");
-
-    let file = path.join(__dirname, 'file_uploads', filename, filename);
-
-    if(fs.existsSync(file)){
-        res.download(file);
-    } else {
-        res.status(400).json("File does not exist.");
-    }
-    
-})
+app.get('/download/:filename', filesRouter.downloadFile);
 
 app.get('/files', (req, res)=>{
-    const fileObjects = fs.readdirSync(path.join(__dirname, 'file_uploads'));
+    const fileObjects = fs.readdirSync(path.join('.', 'file_uploads'));
     res.json(fileObjects);
 })
 
@@ -60,7 +48,7 @@ app.post('/upload', (req, res)=>{
 
     const file = req.files.file;
 
-    const outputRoute = path.join(__dirname, 'file_uploads', file.name.replace(/\s/g,"-"));
+    const outputRoute = path.join('.', 'file_uploads', file.name.replace(/\s/g,"-"));
     if (!fs.existsSync(outputRoute)){
         fs.mkdirSync(outputRoute);
     }

@@ -41,28 +41,6 @@ app.post('/upload', authMiddleware, filesRouter.uploadFiles);
 app.get('/encrypt/:file', authMiddleware, encryptionRouter.encryptFile);
 app.get('/decrypt/:file', authMiddleware, encryptionRouter.decryptFile);
 
-app.get('/testencrypt', (req, res)=>{
-    const filePath = path.join('.', 'test.txt');
-    const file = fs.readFileSync(filePath);
-    const encryptedFile = tEncrypt.encrypt(file);
-
-    fs.writeFileSync(filePath, encryptedFile);
-
-    res.json('OK')
-})
-
-app.get('/testdecrypt', (req, res)=>{
-    const filePath = path.join('.', 'test.txt');
-    const encryptedFile = fs.readFileSync(filePath);
-    const file = tEncrypt.decrypt(encryptedFile);
-
-    fs.writeFileSync(filePath, file);
-
-    res.json('OK')
-})
-
-
-
 https.createServer({
     key: fs.readFileSync(path.join(__dirname, 'certificates', 'localhost-key.pem')),
     cert: fs.readFileSync(path.join(__dirname, 'certificates', 'localhost.pem'))

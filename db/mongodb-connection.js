@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 
 const URL = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PSW}@cluster0.higpp.mongodb.net/${process.env.DB_NAME}?retryWrites=true&w=majority`
 
-console.log(URL);
 mongoose.connect(URL, {
         useNewUrlParser: true,
         useUnifiedTopology: true

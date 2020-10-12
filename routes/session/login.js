@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const connection = require('../../db/db-connection');
 const speakeasy = require('speakeasy');
-const bcrypt = require('bcrypt');
+
+const sessionUtils = require('../../utils/session.utils');
+const logUtils = require('../../utils/log.utils');
+const MultiFactorSchema = require('../../db/MFA-Schema');
+
 
 router.route('/')
-    .post((req, res) => {
+    .post(async (req, res) => {
         let { username, password } = req.body;
 
         username = username.toLowerCase();
@@ -15,34 +18,30 @@ router.route('/')
             return;
         }
 
-        connection.query('SELECT * FROM login WHERE username=?', [username], (error, results) => {
-            if (error) {
-                console.log(error);
-                res.status(400).json([]);
+        try {
+            const user = await sessionUtils.findUser(username);
+
+            if (!user) {
+                res.status(400).json("Username does not exist");
                 return;
             }
-            if (results.length < 1) {
-                res.status(400).json('Username does not exist.');
+
+            await sessionUtils.handleSignInCredentials(user._id, password);
+
+            res.status(200).json({ username: user.username })
+        } catch (error) {
+            console.log(error);
+            if (error.userId) {
+                await logUtils.logAction(error.userId, logUtils.LOG_ACTION_TYPES.LOGIN_FAILURE);
+                res.status(400).json(error.message);
                 return;
-            } else {
-                bcrypt.compare(password, results[0].hash, function (err, ispwdValid) {
-                    if (error) {
-                        console.log(error);
-                        res.status(400).json('Could not log in.');
-                    } else if (ispwdValid) {
-                        res.status(200).json({ username: results[0].username });
-                    } else {
-                        res.status(400).json('Wrong username and password combination.');
-                    }
-                });
             }
-        })
-
-
+            res.status(400).json(error);
+        }
     });
 
 router.route('/verify')
-    .post((req, res) => {
+    .post(async (req, res) => {
         let username = req.body.username;
 
         if (!username) {
@@ -50,31 +49,34 @@ router.route('/verify')
             return;
         }
 
-        connection.query('select secret from multifactor, login where login.username=? && multifactor.userId=login.userId;', [username], (error, results) => {
-            if (error) {
-                console.log(error);
-                res.status(400).json([]);
+        try {
+            const user = await sessionUtils.findUser(username);
+
+            if (!user || !req.body.token) {
+                res.status(400).json("Missing fields.");
                 return;
             }
-            if (results.length < 1) {
-                res.status(400).json('Value does not exist.');
-                return;
+            const mfaRecord = await MultiFactorSchema.findOne({ userId: user._id });
+
+            const secret = mfaRecord.secret;
+
+            let verified = speakeasy.totp.verify({
+                secret: secret,
+                encoding: 'ascii',
+                token: req.body.token
+            })
+
+
+            if (verified) {
+                await logUtils.logAction(user._id, logUtils.LOG_ACTION_TYPES.LOGIN);
+                res.status(200).json({ message: 'verified' })
             } else {
-                let secret = results[0].secret;
-
-                let verified = speakeasy.totp.verify({
-                    secret: secret,
-                    encoding: 'ascii',
-                    token: req.body.token
-                })
-
-                if(verified) {
-                    res.status(200).json({message: "Verified"});
-                } else{
-                    res.status(400).json("bad token")
-                }
+                logUtils.logAction(user._id, logUtils.LOG_ACTION_TYPES.LOGIN_FAILURE);
+                res.status(400).json("Incorrect code");
             }
-        })
+        } catch (error) {
+            res.status(400).json("Could not login with given code");
+        }
 
     })
 

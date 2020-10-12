@@ -1,5 +1,7 @@
 const mongoose = require('./mongoDB-connection');
 
+const FileSchema = require('./FileSchema');
+
 let userSchema = mongoose.Schema({
     username: {
         type:String,
@@ -13,9 +15,10 @@ let userSchema = mongoose.Schema({
         type:Date,
         default: Date.now
     },
+    files: [FileSchema]
 
 })
 
-let User = mongoose.model("users", userSchema);
+let User = mongoose.model("user", userSchema);
 
 module.exports = User;

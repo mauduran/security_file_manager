@@ -2,84 +2,53 @@ const express = require('express');
 const speakeasy = require('speakeasy')
 const qrcode = require('qrcode');
 const router = express.Router();
-const connection = require('../../db/db-connection');
-const bcrypt = require('bcrypt');
+const argon2 = require('argon2');
+const fs = require('fs');
+const path = require('path');
 
-function existsUser(username) {
-    return new Promise((resolve, reject) => {
-        connection.query('SELECT * FROM login WHERE username=?', [username], (error, results) => {
-            if (error) {
-                reject(false);
-                return;
-            }
-            if (results.length > 0) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        });
-    });
-}
-
-function insertMultiFactorSecret(userId, secret) {
-    return new Promise((resolve, reject) => {
-        connection.query('INSERT INTO multifactor(userId, secret) VALUES(?, ?)',
-            [userId, secret], (error, results) => {
-                if (error) {
-                    reject(error);
-                    return;
-                }
-                resolve(true);
-            })
-    })
-}
+const db = require('../../db/mongodb-connection');
+const sessionUtils = require('../../utils/session.utils');
+const logUtils = require('../../utils/log.utils');
 
 router.route('/')
     .post(async (req, res) => {
-        let { username, password } = req.body;
+        let { name, username, password } = req.body;
         username = username.toLowerCase();
+        const session = await db.startSession();
+        session.startTransaction();
         try {
-            const existsUsr = await existsUser(username);
-            if (existsUsr) {
+            if (await sessionUtils.findUser(username)) {
                 res.status(409).json('Username already exists');
                 return;
-            } else {
-                bcrypt.hash(password, 10).then(hash => {
-                    connection.query('INSERT INTO LOGIN(username, hash) VALUES(?, ?)', [username, hash], (error, results) => {
-
-                        if (error) {
-                            console.log(error);
-                            res.status(400).json(error);
-                        } else {
-
-                            var secret = speakeasy.generateSecret({
-                                name: username
-                            });
-
-                            insertMultiFactorSecret(results.insertId, secret.ascii)
-                                .then(val =>{
-                                    qrcode.toDataURL(secret.otpauth_url, (qrErr, qrData)=>{
-                                        res.json({
-                                            message: 'User registered successfully',
-                                            qr: qrData
-                                        });
-
-                                    })
-                                })
-                                .catch(err => {
-                                    console.log(err);
-                                    res.status(400).json("Unexpected error");
-                                })
-                        }
-                    })
-                });
-
             }
 
+            const userId = await sessionUtils.insertUser(name, username, session);
+            const hash = await argon2.hash(password);
+            await sessionUtils.insertUserLogin(userId, hash, session);
+            var secret = speakeasy.generateSecret({
+                name: username
+            });
+
+            await logUtils.logAction(userId, logUtils.LOG_ACTION_TYPES.REGISTER);
+
+            if (!(await sessionUtils.insertMultiFactorSecret(userId, secret.ascii, session))) throw new Error('MFA_Exception');
+
+            let qrCode = await qrcode.toDataURL(secret.otpauth_url);
+
+            const outputRoute = path.join('.', 'file_uploads', username);
+            if (!fs.existsSync(outputRoute)) {
+                fs.mkdirSync(outputRoute);
+            }
+
+            await session.commitTransaction();
+            res.json({
+                message: 'User registered successfully',
+                qr: qrCode
+            })
         } catch (error) {
+            await session.abortTransaction();
             res.status(400).json('Unexpected Error');
         }
-
     })
 
 

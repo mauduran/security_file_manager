@@ -7,7 +7,7 @@ const qrcode = require('qrcode');
 const private_key = fs.readFileSync('./keys/privateKey.pem', 'utf-8');
 const public_key = fs.readFileSync('./keys/publicKey.pem', 'utf-8');
 
-const signDocument = (filePath, fileName) => {
+const signDocument = (filePath, username, fileName) => {
     const doc = fs.readFileSync(path.join(filePath, fileName));
 
     const signer = crypto.createSign('RSA-SHA256');
@@ -18,7 +18,7 @@ const signDocument = (filePath, fileName) => {
 
     fs.writeFileSync(path.join(filePath, 'signature.txt'), signature);
 
-    generateQRSignature(filePath, fileName);
+    generateQRSignature(filePath, username, fileName);
 
     return signature;
 }
@@ -35,10 +35,10 @@ const verifyDocument = (filePath, fileName) => {
     return verifier.verify(public_key, signature, 'base64');
 }
 
-async function generateQRSignature(filePath, fileName="") {
+async function generateQRSignature(filePath, username, fileName="") {
     const signature = fs.readFileSync(path.join(filePath, 'signature.txt'), 'utf-8');
 
-    const content = "signature:"+signature + "&File:" + fileName + "&SignedBy:MauricioDuran";
+    const content = "signature:"+signature + "&File:" + fileName + "&SignedBy:"+ username;
     await qrcode.toFile(path.join(filePath, 'qr.png'), content);
 
 }

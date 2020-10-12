@@ -10,7 +10,7 @@ const findUser = async (username) => {
 
 const updatePassword = async (userId, password) => {
     try {
-        const hash = argon2.hash(password);
+        const hash = await argon2.hash(password);
 
         await LoginSchema.updateOne({ userId }, { hash });
         return Promise.resolve(true);
@@ -67,6 +67,7 @@ const handleSignInCredentials = async (userId, password) => {
 
         return (validCredentials) ? Promise.resolve(true) : Promise.reject({ userId: userId, message: 'Wrong credentials' });
     } catch (error) {
+        
         console.log(error);
         return Promise.reject({ userId: userId, message: 'Unexpected Error' });
     }

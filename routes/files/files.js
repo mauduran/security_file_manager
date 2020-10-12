@@ -61,7 +61,7 @@ const uploadFiles = async (req, res) => {
                 console.log(err);
                 return res.status(500).send(err);
             }
-            const signature = signatures.signDocument(outputRoute, fileName);
+            const signature = signatures.signDocument(outputRoute, req.username, fileName);
 
             await fileUtils.addFileRegister(req.userId, fileName, signature, session)
             await logUtils.logAction(req.userId, logUtils.LOG_ACTION_TYPES.FILE_UPLOAD, session, fileName);

@@ -35,6 +35,7 @@ router.route('/update/password')
         try {
             await sessionUtils.handleSignInCredentials(req.userId, currentPassword);
             await sessionUtils.updatePassword(req.userId, newPassword);
+
             await logUtils.logAction(req.userId, logUtils.LOG_ACTION_TYPES.PASSWORD_CHANGE);
 
             return res.json("Success");
